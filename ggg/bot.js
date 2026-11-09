@@ -281,6 +281,9 @@ function iniciarServidorWeb(client, estado) {
     }
   });
 
+  // Envio de um arquivo para cada cliente (planilha envios/clientes.csv).
+  require('./envio-arquivos').registrarRotasArquivos(app, client, estado, log);
+
   // Só aceita conexões deste computador: qualquer pessoa com acesso à página
   // poderia mandar mensagens pelo seu WhatsApp.
   const PORTA = Number(process.env.PORT) || 3000;

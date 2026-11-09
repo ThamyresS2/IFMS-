@@ -167,3 +167,94 @@ textarea { resize: vertical; min-height: 100px; }
 .historico li:first-child { border-top: none; padding-top: 0; }
 .historico .meta { font-size: 0.8rem; color: var(--texto-suave); }
 .historico .msg { white-space: pre-wrap; word-break: break-word; }
+
+code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.85em;
+  background: var(--fundo);
+  border: 1px solid var(--borda);
+  border-radius: 4px;
+  padding: 0 4px;
+  word-break: break-all;
+}
+
+/* Abas */
+.abas {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  margin-bottom: 16px;
+  background: var(--cartao);
+  border: 1px solid var(--borda);
+  border-radius: 10px;
+}
+.aba {
+  flex: 1;
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--texto-suave);
+  background: none;
+  border: none;
+  border-radius: 7px;
+  cursor: pointer;
+}
+.aba[aria-selected="true"] { background: var(--verde-claro); color: var(--verde); }
+
+/* Arquivos para clientes */
+.tabela-topo {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.check { display: flex; align-items: center; gap: 8px; margin: 0; font-weight: 600; }
+.check input, .lista-clientes input { width: 18px; height: 18px; margin: 0; accent-color: var(--verde); }
+
+.lista-clientes {
+  list-style: none;
+  margin: 0 0 16px;
+  padding: 0;
+  border: 1px solid var(--borda);
+  border-radius: 8px;
+  max-height: 360px;
+  overflow-y: auto;
+}
+.lista-clientes li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-top: 1px solid var(--borda);
+}
+.lista-clientes li:first-child { border-top: none; }
+.cliente-info { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.cliente-info .dica { margin: 0; overflow-wrap: anywhere; }
+
+.etiqueta {
+  flex-shrink: 0;
+  max-width: 40%;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-align: center;
+  background: var(--fundo);
+  color: var(--texto-suave);
+}
+.etiqueta--enviando, .etiqueta--aguardando { background: var(--amarelo-claro); color: var(--amarelo); }
+.etiqueta--enviado { background: var(--verde-claro); color: var(--verde); }
+.etiqueta--erro { background: var(--vermelho-claro); color: var(--vermelho); }
+
+.acoes { display: flex; gap: 8px; }
+.botao--secundario {
+  background: none;
+  color: var(--vermelho);
+  border: 1px solid var(--vermelho);
+}
+.botao--secundario:hover { background: var(--vermelho-claro); }
+.link:disabled { opacity: 0.5; cursor: default; }
+#tela-arquivos > .dica { margin: 0 0 16px; }

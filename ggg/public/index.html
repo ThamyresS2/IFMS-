@@ -32,7 +32,12 @@
     </section>
 
     <!-- Aparece quando o WhatsApp está conectado -->
-    <section id="tela-envio" class="cartao" hidden>
+    <nav id="abas" class="abas" role="tablist" hidden>
+      <button type="button" role="tab" class="aba" data-aba="grupo" aria-selected="true">Mensagem para grupo</button>
+      <button type="button" role="tab" class="aba" data-aba="arquivos" aria-selected="false">Arquivos para clientes</button>
+    </nav>
+
+    <section id="tela-envio" class="cartao" data-painel="grupo" hidden>
       <form id="form-envio">
         <div class="campo">
           <div class="rotulo-linha">
@@ -55,9 +60,43 @@
       </form>
     </section>
 
-    <section id="secao-historico" class="cartao" hidden>
+    <section id="secao-historico" class="cartao" data-painel="grupo" hidden>
       <h2>Enviadas agora</h2>
       <ul id="historico" class="historico"></ul>
+    </section>
+
+    <section id="tela-arquivos" class="cartao" data-painel="arquivos" hidden>
+      <div class="rotulo-linha">
+        <h2>Clientes da planilha</h2>
+        <button type="button" id="recarregar-clientes" class="link">Recarregar planilha</button>
+      </div>
+      <p class="dica">
+        Lido de <code>ggg/envios/clientes.csv</code>. Os arquivos ficam em
+        <code>ggg/envios/arquivos/</code>.
+      </p>
+
+      <p id="erro-planilha" class="aviso aviso--erro" hidden></p>
+
+      <div id="bloco-clientes" hidden>
+        <div class="campo">
+          <label for="mensagem-padrao">Mensagem que vai junto do arquivo</label>
+          <textarea id="mensagem-padrao" rows="3">Olá {nome}, segue o seu arquivo.</textarea>
+          <p class="dica">Use <code>{nome}</code> para o primeiro nome do cliente. Se a planilha tiver a coluna "mensagem" preenchida, ela é usada no lugar desta.</p>
+        </div>
+
+        <div class="tabela-topo">
+          <label class="check"><input type="checkbox" id="marcar-todos" checked> Marcar todos</label>
+          <span id="resumo-clientes" class="dica"></span>
+        </div>
+        <ul id="lista-clientes" class="lista-clientes"></ul>
+
+        <div class="acoes">
+          <button type="button" id="enviar-arquivos" class="botao">Enviar arquivos</button>
+          <button type="button" id="parar-arquivos" class="botao botao--secundario" hidden>Parar envio</button>
+        </div>
+        <p id="aviso-arquivos" class="aviso" role="status" hidden></p>
+        <p class="dica">O bot espera de 5 a 12 segundos entre um cliente e outro para o WhatsApp não bloquear o número.</p>
+      </div>
     </section>
   </main>
 

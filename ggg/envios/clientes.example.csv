@@ -1,0 +1,4 @@
+nome;telefone;arquivo;mensagem
+Maria Souza;67999999999;boleto-maria.pdf;Olá {nome}, segue o seu boleto deste mês.
+João Lima;5567988888888;boleto-joao.pdf;
+Ana Pereira;(67) 97777-7777;contrato-ana.pdf;Oi {nome}! Segue o contrato para assinatura.
