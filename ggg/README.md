@@ -8,7 +8,7 @@ Usa o [whatsapp-web.js](https://wwebjs.dev/), que conecta no WhatsApp Web com o 
 Precisa do [Node.js](https://nodejs.org/) 18 ou mais novo.
 
 ```bash
-cd whatsapp-bot
+cd ggg
 npm install
 cp mensagens.example.json mensagens.json   # depois edite este arquivo
 npm run check                              # confere se o arquivo está certo
