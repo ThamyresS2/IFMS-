@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ggg — Mensagens no WhatsApp</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="container">
+    <header class="topo">
+      <h1>ggg</h1>
+      <p class="subtitulo">Envie mensagens para um grupo do WhatsApp</p>
+      <span id="status" class="status status--iniciando">Iniciando…</span>
+    </header>
+
+    <!-- Aparece enquanto o WhatsApp não está conectado -->
+    <section id="tela-conexao" class="cartao">
+      <div id="carregando">
+        <div class="spinner" aria-hidden="true"></div>
+        <p id="texto-carregando">Abrindo o WhatsApp Web…</p>
+      </div>
+      <div id="bloco-qr" hidden>
+        <h2>Conecte seu WhatsApp</h2>
+        <img id="qr" alt="QR Code para conectar o WhatsApp">
+        <ol class="passos">
+          <li>Abra o WhatsApp no celular</li>
+          <li>Vá em <strong>Configurações › Aparelhos conectados</strong></li>
+          <li>Toque em <strong>Conectar um aparelho</strong> e aponte para o QR Code</li>
+        </ol>
+      </div>
+    </section>
+
+    <!-- Aparece quando o WhatsApp está conectado -->
+    <section id="tela-envio" class="cartao" hidden>
+      <form id="form-envio">
+        <div class="campo">
+          <div class="rotulo-linha">
+            <label for="grupo">Grupo</label>
+            <button type="button" id="recarregar" class="link">Atualizar lista</button>
+          </div>
+          <input type="search" id="busca" placeholder="Buscar grupo…" autocomplete="off">
+          <select id="grupo" size="6" required></select>
+          <p id="info-grupos" class="dica"></p>
+        </div>
+
+        <div class="campo">
+          <label for="texto">Mensagem</label>
+          <textarea id="texto" rows="5" placeholder="Digite a mensagem…" required></textarea>
+          <p class="dica"><span id="contador">0</span> caracteres · Ctrl+Enter para enviar</p>
+        </div>
+
+        <button type="submit" id="enviar" class="botao">Enviar mensagem</button>
+        <p id="aviso" class="aviso" role="status" hidden></p>
+      </form>
+    </section>
+
+    <section id="secao-historico" class="cartao" hidden>
+      <h2>Enviadas agora</h2>
+      <ul id="historico" class="historico"></ul>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

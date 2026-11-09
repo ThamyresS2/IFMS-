@@ -1,6 +1,10 @@
-# Bot de mensagens automáticas no WhatsApp
+# ggg — Bot de mensagens no WhatsApp
 
-Envia mensagens no WhatsApp nos dias e horários que você definir, para contatos ou grupos.
+Envia mensagens no WhatsApp de dois jeitos:
+
+- **Pela página web**: escolha um grupo, escreva a mensagem e clique em enviar.
+- **Agendadas**: nos dias e horários que você definir em `mensagens.json`, para contatos ou grupos.
+
 Usa o [whatsapp-web.js](https://wwebjs.dev/), que conecta no WhatsApp Web com o seu número.
 
 ## Como usar
@@ -10,20 +14,36 @@ Precisa do [Node.js](https://nodejs.org/) 18 ou mais novo.
 ```bash
 cd ggg
 npm install
-cp mensagens.example.json mensagens.json   # depois edite este arquivo
-npm run check                              # confere se o arquivo está certo
 npm start
 ```
 
-Na primeira vez aparece um **QR Code** no terminal. No celular, abra
+Depois abra **http://localhost:3000** no navegador.
+
+Na primeira vez aparece um **QR Code** na página (e no terminal). No celular, abra
 **WhatsApp > Configurações > Aparelhos conectados > Conectar um aparelho** e escaneie.
 A sessão fica salva em `.wwebjs_auth/`, então nas próximas vezes não precisa escanear de novo.
 
-Deixe o terminal aberto: as mensagens só são enviadas enquanto o bot estiver rodando.
+Deixe o terminal aberto: a página e as mensagens agendadas só funcionam enquanto o bot estiver rodando.
 
-Para testar, `npm start -- --agora` envia todas as mensagens uma vez e encerra.
+## Enviando para um grupo pela página
 
-## Configurando as mensagens (`mensagens.json`)
+1. Rode `npm start` e abra http://localhost:3000.
+2. Escolha o grupo na lista (dá para buscar pelo nome).
+3. Escreva a mensagem e clique em **Enviar mensagem** (ou Ctrl+Enter).
+
+A página só abre no próprio computador onde o bot está rodando, para ninguém da sua rede
+conseguir mandar mensagens pelo seu WhatsApp. Para usar outra porta: `PORT=8080 npm start`.
+
+## Mensagens agendadas (opcional)
+
+```bash
+cp mensagens.example.json mensagens.json   # depois edite este arquivo
+npm run check                              # confere se o arquivo está certo
+```
+
+Sem o `mensagens.json`, o bot funciona só pela página. Para testar os agendamentos, `npm start -- --agora` envia todas as mensagens uma vez e encerra.
+
+### Formato do `mensagens.json`
 
 ```json
 {

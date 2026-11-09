@@ -1,7 +1,8 @@
 // Bot que envia mensagens agendadas automaticamente no WhatsApp.
 //
 // Uso:
-//   npm start            -> conecta no WhatsApp e agenda as mensagens
+//   npm start            -> conecta no WhatsApp, agenda as mensagens e abre a
+//                           página web em http://localhost:3000
 //   npm start -- --agora -> conecta e envia TODAS as mensagens uma vez (teste)
 //   npm run check        -> só valida o arquivo mensagens.json (não conecta)
 
@@ -37,12 +38,9 @@ function pausaAleatoria() {
 // ---------------------------------------------------------------------------
 
 function carregarConfig() {
+  // Sem mensagens.json o bot funciona só pela página web, sem agendamentos.
   if (!fs.existsSync(ARQUIVO_CONFIG)) {
-    throw new Error(
-      'Arquivo mensagens.json não encontrado.\n' +
-        'Copie o exemplo com:  cp mensagens.example.json mensagens.json\n' +
-        'e edite os números, textos e horários.'
-    );
+    return { fusoHorario: 'America/Campo_Grande', mensagens: [], semArquivo: true };
   }
 
   let config;
@@ -53,8 +51,8 @@ function carregarConfig() {
   }
 
   const erros = [];
-  if (!Array.isArray(config.mensagens) || config.mensagens.length === 0) {
-    erros.push('"mensagens" precisa ser uma lista com pelo menos uma mensagem.');
+  if (!Array.isArray(config.mensagens)) {
+    erros.push('"mensagens" precisa ser uma lista.');
   } else {
     config.mensagens.forEach((m, i) => {
       const nome = m.nome || `mensagem #${i + 1}`;
@@ -142,6 +140,10 @@ async function main() {
   const config = carregarConfig();
 
   if (MODO_CHECK) {
+    if (config.semArquivo) {
+      console.log('Sem mensagens.json: nenhuma mensagem agendada (a página web funciona normalmente).');
+      return;
+    }
     console.log(`mensagens.json OK — ${config.mensagens.length} mensagem(ns), fuso ${config.fusoHorario}:`);
     config.mensagens.forEach((m, i) => {
       const destino = [...(m.para || []), ...(m.grupo ? [`grupo "${m.grupo}"`] : [])].join(', ');
@@ -152,7 +154,7 @@ async function main() {
 
   // Carregados só aqui para o modo --check funcionar sem abrir o navegador.
   const { Client, LocalAuth } = require('whatsapp-web.js');
-  const qrcode = require('qrcode-terminal');
+  const qrcodeTerminal = require('qrcode-terminal');
 
   const client = new Client({
     // Salva a sessão em .wwebjs_auth/ — só precisa ler o QR Code na 1ª vez.
@@ -164,13 +166,24 @@ async function main() {
     },
   });
 
-  client.on('qr', (qr) => {
-    log('Escaneie o QR Code abaixo no WhatsApp do celular:');
+  // Estado mostrado na página web.
+  const estado = { status: 'iniciando', qr: null };
+
+  if (!MODO_AGORA) iniciarServidorWeb(client, estado);
+
+  client.on('qr', async (qr) => {
+    estado.status = 'qr';
+    estado.qr = await require('qrcode').toDataURL(qr, { margin: 1, width: 280 });
+    log('Escaneie o QR Code (no terminal ou na página web) com o WhatsApp do celular:');
     log('(WhatsApp > Configurações > Aparelhos conectados > Conectar um aparelho)');
-    qrcode.generate(qr, { small: true });
+    qrcodeTerminal.generate(qr, { small: true });
   });
 
-  client.on('authenticated', () => log('Autenticado.'));
+  client.on('authenticated', () => {
+    estado.status = 'autenticando';
+    estado.qr = null;
+    log('Autenticado.');
+  });
   client.on('auth_failure', (msg) => log('Falha na autenticação:', msg));
   client.on('disconnected', (motivo) => {
     log('Desconectado do WhatsApp:', motivo);
@@ -178,6 +191,7 @@ async function main() {
   });
 
   client.on('ready', async () => {
+    estado.status = 'conectado';
     log('WhatsApp conectado! ✅');
 
     if (MODO_AGORA) {
@@ -208,6 +222,71 @@ async function main() {
 
   log('Iniciando o WhatsApp Web...');
   await client.initialize();
+}
+
+// ---------------------------------------------------------------------------
+// Página web (front) para enviar mensagens a um grupo
+// ---------------------------------------------------------------------------
+
+function iniciarServidorWeb(client, estado) {
+  const express = require('express');
+  const app = express();
+  app.use(express.json({ limit: '100kb' }));
+  app.use(express.static(path.join(__dirname, 'public')));
+
+  app.get('/api/status', (req, res) => {
+    res.json({ status: estado.status, qr: estado.status === 'qr' ? estado.qr : null });
+  });
+
+  app.get('/api/grupos', async (req, res) => {
+    if (estado.status !== 'conectado') {
+      return res.status(503).json({ erro: 'O WhatsApp ainda não está conectado.' });
+    }
+    try {
+      const chats = await client.getChats();
+      const grupos = chats
+        .filter((c) => c.isGroup)
+        .map((c) => ({
+          id: c.id._serialized,
+          nome: c.name,
+          participantes: c.participants ? c.participants.length : null,
+        }))
+        .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+      res.json(grupos);
+    } catch (err) {
+      log('Erro ao listar grupos:', err.message);
+      res.status(500).json({ erro: 'Não foi possível carregar os grupos.' });
+    }
+  });
+
+  app.post('/api/enviar', async (req, res) => {
+    if (estado.status !== 'conectado') {
+      return res.status(503).json({ erro: 'O WhatsApp ainda não está conectado.' });
+    }
+    const { grupoId, texto } = req.body || {};
+    if (typeof grupoId !== 'string' || !grupoId.endsWith('@g.us')) {
+      return res.status(400).json({ erro: 'Escolha um grupo.' });
+    }
+    if (typeof texto !== 'string' || !texto.trim()) {
+      return res.status(400).json({ erro: 'Escreva a mensagem.' });
+    }
+    try {
+      const chat = await client.getChatById(grupoId);
+      await chat.sendMessage(texto.trim());
+      log(`Mensagem enviada pela página web no grupo "${chat.name}"`);
+      res.json({ ok: true, grupo: chat.name });
+    } catch (err) {
+      log('Erro ao enviar pela página web:', err.message);
+      res.status(500).json({ erro: 'Não foi possível enviar a mensagem.' });
+    }
+  });
+
+  // Só aceita conexões deste computador: qualquer pessoa com acesso à página
+  // poderia mandar mensagens pelo seu WhatsApp.
+  const PORTA = Number(process.env.PORT) || 3000;
+  app.listen(PORTA, '127.0.0.1', () => {
+    log(`Página web: abra http://localhost:${PORTA} no navegador`);
+  });
 }
 
 main().catch((err) => {
