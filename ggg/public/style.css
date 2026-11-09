@@ -258,3 +258,50 @@ code {
 .botao--secundario:hover { background: var(--vermelho-claro); }
 .link:disabled { opacity: 0.5; cursor: default; }
 #tela-arquivos > .dica { margin: 0 0 16px; }
+
+/* Cadastro de clientes */
+.botao--contorno {
+  background: none;
+  color: var(--verde);
+  border: 1px solid var(--verde);
+}
+.botao--contorno:hover { background: var(--verde-claro); }
+#novo-cliente { margin-bottom: 16px; }
+.botao:disabled:not(#enviar-arquivos) { cursor: default; }
+
+.form-cliente {
+  margin-bottom: 16px;
+  padding: 16px;
+  border: 1px solid var(--verde);
+  border-radius: 10px;
+  background: var(--fundo);
+}
+.form-cliente h3 { margin: 0 0 12px; font-size: 1rem; }
+.form-cliente input, .form-cliente select, .form-cliente textarea { background: var(--cartao); }
+.form-cliente .campo { margin-bottom: 14px; }
+.form-cliente .aviso { margin: 0 0 12px; }
+
+fieldset { border: none; padding: 0; margin: 0; min-width: 0; }
+legend { font-weight: 600; margin-bottom: 6px; padding: 0; }
+.opcao {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 16px 8px 0;
+  font-weight: 400;
+}
+.opcao input { width: auto; margin: 0; accent-color: var(--verde); }
+input[type="file"] { padding: 8px; }
+.opcional { font-weight: 400; color: var(--texto-suave); }
+
+.vazio {
+  margin: 0;
+  padding: 24px 12px;
+  text-align: center;
+  color: var(--texto-suave);
+  border: 1px dashed var(--borda);
+  border-radius: 8px;
+}
+
+.cliente-botoes { display: flex; gap: 14px; margin-top: 2px; }
+.link--perigo { color: var(--vermelho); }

@@ -67,21 +67,54 @@
 
     <section id="tela-arquivos" class="cartao" data-painel="arquivos" hidden>
       <div class="rotulo-linha">
-        <h2>Clientes da planilha</h2>
-        <button type="button" id="recarregar-clientes" class="link">Recarregar planilha</button>
+        <h2>Clientes</h2>
+        <button type="button" id="recarregar-clientes" class="link">Recarregar</button>
       </div>
       <p class="dica">
-        Lido de <code>ggg/envios/clientes.csv</code>. Os arquivos ficam em
-        <code>ggg/envios/arquivos/</code>.
+        Cadastre cada cliente com o arquivo dele. Fica salvo em
+        <code>ggg/envios/clientes.csv</code> (dá para abrir no Excel).
       </p>
 
       <p id="erro-planilha" class="aviso aviso--erro" hidden></p>
+
+      <button type="button" id="novo-cliente" class="botao botao--contorno">+ Cadastrar cliente</button>
+
+      <form id="form-cliente" class="form-cliente" hidden>
+        <h3 id="titulo-form-cliente">Novo cliente</h3>
+        <div class="campo">
+          <label for="cli-nome">Nome</label>
+          <input id="cli-nome" required autocomplete="off" placeholder="Maria Souza">
+        </div>
+        <div class="campo">
+          <label for="cli-telefone">WhatsApp (com DDD)</label>
+          <input id="cli-telefone" type="tel" inputmode="tel" required autocomplete="off" placeholder="(67) 99999-9999">
+        </div>
+        <fieldset class="campo">
+          <legend>Arquivo</legend>
+          <label class="opcao"><input type="radio" name="origem-arquivo" value="novo" checked> Enviar do computador</label>
+          <label class="opcao"><input type="radio" name="origem-arquivo" value="pasta"> Já está na pasta</label>
+          <input id="cli-upload" type="file">
+          <select id="cli-arquivo-pasta" hidden></select>
+          <p id="cli-arquivo-atual" class="dica" hidden></p>
+        </fieldset>
+        <div class="campo">
+          <label for="cli-mensagem">Mensagem só para este cliente <span class="opcional">(opcional)</span></label>
+          <textarea id="cli-mensagem" rows="2" placeholder="Se ficar vazio, usa a mensagem padrão"></textarea>
+        </div>
+        <p id="aviso-cliente" class="aviso aviso--erro" hidden></p>
+        <div class="acoes">
+          <button type="submit" id="salvar-cliente" class="botao">Salvar</button>
+          <button type="button" id="cancelar-cliente" class="botao botao--contorno">Cancelar</button>
+        </div>
+      </form>
+
+      <p id="sem-clientes" class="vazio" hidden>Nenhum cliente cadastrado ainda.</p>
 
       <div id="bloco-clientes" hidden>
         <div class="campo">
           <label for="mensagem-padrao">Mensagem que vai junto do arquivo</label>
           <textarea id="mensagem-padrao" rows="3">Olá {nome}, segue o seu arquivo.</textarea>
-          <p class="dica">Use <code>{nome}</code> para o primeiro nome do cliente. Se a planilha tiver a coluna "mensagem" preenchida, ela é usada no lugar desta.</p>
+          <p class="dica">Use <code>{nome}</code> para o primeiro nome do cliente. Se o cliente tiver uma mensagem só dele, ela é usada no lugar desta.</p>
         </div>
 
         <div class="tabela-topo">

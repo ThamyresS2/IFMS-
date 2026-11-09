@@ -1,4 +1,7 @@
-// Envio de um arquivo para cada cliente, a partir da planilha envios/clientes.csv.
+// Envio de um arquivo diferente para cada cliente.
+//
+// Os clientes ficam na planilha envios/clientes.csv, que pode ser editada pela
+// página web (aba "Arquivos para clientes") ou no Excel.
 //
 // Colunas da planilha (a 1ª linha é o cabeçalho; separador ; ou ,):
 //   nome;telefone;arquivo;mensagem
@@ -17,32 +20,57 @@ const PLANILHA = path.join(PASTA_ENVIOS, 'clientes.csv');
 const PAUSA_MIN_MS = 5000;
 const PAUSA_MAX_MS = 12000;
 
+// Tamanho máximo de arquivo enviado pela página.
+const LIMITE_UPLOAD = '64mb';
+
 // ---------------------------------------------------------------------------
-// Leitura da planilha
+// Leitura e gravação da planilha
 // ---------------------------------------------------------------------------
 
-function separarLinha(linha, sep) {
-  const campos = [];
-  let atual = '';
+// Lê um CSV inteiro, aceitando campos entre aspas com ; , ou quebras de linha.
+function lerCsv(conteudo, sep) {
+  const linhas = [];
+  let linha = [];
+  let campo = '';
   let aspas = false;
-  for (let i = 0; i < linha.length; i++) {
-    const c = linha[i];
-    if (c === '"') {
-      if (aspas && linha[i + 1] === '"') {
-        atual += '"';
+
+  for (let i = 0; i < conteudo.length; i++) {
+    const c = conteudo[i];
+    if (aspas) {
+      if (c === '"' && conteudo[i + 1] === '"') {
+        campo += '"';
         i++;
+      } else if (c === '"') {
+        aspas = false;
       } else {
-        aspas = !aspas;
+        campo += c;
       }
-    } else if (c === sep && !aspas) {
-      campos.push(atual);
-      atual = '';
+    } else if (c === '"') {
+      aspas = true;
+    } else if (c === sep) {
+      linha.push(campo);
+      campo = '';
+    } else if (c === '\n' || c === '\r') {
+      if (c === '\r' && conteudo[i + 1] === '\n') i++;
+      linha.push(campo);
+      linhas.push(linha);
+      linha = [];
+      campo = '';
     } else {
-      atual += c;
+      campo += c;
     }
   }
-  campos.push(atual);
-  return campos.map((c) => c.trim());
+  linha.push(campo);
+  linhas.push(linha);
+
+  return linhas
+    .map((l) => l.map((c) => c.trim()))
+    .filter((l) => l.some((c) => c !== ''));
+}
+
+function campoCsv(valor) {
+  const txt = String(valor ?? '');
+  return /[;"\r\n]/.test(txt) ? `"${txt.replace(/"/g, '""')}"` : txt;
 }
 
 function normalizarCabecalho(txt) {
@@ -53,24 +81,30 @@ function normalizarCabecalho(txt) {
     .replace(/[^a-z]/g, '');
 }
 
+function normalizarTelefone(tel) {
+  let digitos = String(tel || '').replace(/\D/g, '');
+  // Números brasileiros sem o 55 na frente: completa sozinho.
+  if (digitos.length === 10 || digitos.length === 11) digitos = '55' + digitos;
+  return digitos;
+}
+
+function verificarCliente(cliente) {
+  if (cliente.telefone.length < 12 || cliente.telefone.length > 15) return 'Telefone inválido';
+  if (!cliente.arquivo) return 'Sem arquivo';
+  if (!caminhoDoArquivo(cliente.arquivo)) return 'Arquivo não encontrado';
+  return null;
+}
+
 function lerPlanilha() {
-  if (!fs.existsSync(PLANILHA)) {
-    return {
-      erro:
-        'Planilha não encontrada. Crie o arquivo envios/clientes.csv ' +
-        '(veja o exemplo em envios/clientes.example.csv).',
-      clientes: [],
-    };
-  }
+  if (!fs.existsSync(PLANILHA)) return { erro: null, clientes: [] };
 
   const conteudo = fs.readFileSync(PLANILHA, 'utf8').replace(/^﻿/, '');
-  const linhas = conteudo.split(/\r?\n/).filter((l) => l.trim());
-  if (linhas.length < 2) {
-    return { erro: 'A planilha está vazia (precisa do cabeçalho e pelo menos um cliente).', clientes: [] };
-  }
+  const primeiraLinha = conteudo.split(/\r?\n/, 1)[0];
+  const sep = primeiraLinha.includes(';') ? ';' : ',';
+  const linhas = lerCsv(conteudo, sep);
+  if (linhas.length === 0) return { erro: null, clientes: [] };
 
-  const sep = linhas[0].includes(';') ? ';' : ',';
-  const cabecalho = separarLinha(linhas[0], sep).map(normalizarCabecalho);
+  const cabecalho = linhas[0].map(normalizarCabecalho);
   const col = (...nomes) => cabecalho.findIndex((c) => nomes.includes(c));
   const iNome = col('nome', 'cliente');
   const iTel = col('telefone', 'celular', 'whatsapp', 'numero', 'fone');
@@ -81,33 +115,31 @@ function lerPlanilha() {
     return { erro: 'A planilha precisa ter as colunas "telefone" e "arquivo".', clientes: [] };
   }
 
-  const clientes = linhas.slice(1).map((linha, i) => {
-    const campos = separarLinha(linha, sep);
+  const clientes = linhas.slice(1).map((campos, i) => {
     const cliente = {
-      linha: i + 2,
+      linha: i + 1, // posição do cliente na planilha (1 = primeiro cliente)
       nome: iNome >= 0 ? campos[iNome] || '' : '',
-      telefone: (campos[iTel] || '').replace(/\D/g, ''),
+      telefone: normalizarTelefone(campos[iTel]),
       arquivo: campos[iArq] || '',
       mensagem: iMsg >= 0 ? campos[iMsg] || '' : '',
-      problema: null,
     };
-
-    // Números brasileiros sem o 55 na frente: completa sozinho.
-    if (cliente.telefone.length === 10 || cliente.telefone.length === 11) {
-      cliente.telefone = '55' + cliente.telefone;
-    }
-
-    if (cliente.telefone.length < 12 || cliente.telefone.length > 15) {
-      cliente.problema = 'Telefone inválido';
-    } else if (!cliente.arquivo) {
-      cliente.problema = 'Sem arquivo';
-    } else if (!caminhoDoArquivo(cliente.arquivo)) {
-      cliente.problema = 'Arquivo não encontrado';
-    }
+    cliente.problema = verificarCliente(cliente);
     return cliente;
   });
 
   return { erro: null, clientes };
+}
+
+function salvarPlanilha(clientes) {
+  const linhas = [['nome', 'telefone', 'arquivo', 'mensagem']].concat(
+    clientes.map((c) => [c.nome, c.telefone, c.arquivo, c.mensagem])
+  );
+  const csv = linhas.map((l) => l.map(campoCsv).join(';')).join('\r\n') + '\r\n';
+  fs.mkdirSync(PASTA_ENVIOS, { recursive: true });
+  // O ﻿ no começo faz o Excel abrir os acentos certinho.
+  const temporario = PLANILHA + '.tmp';
+  fs.writeFileSync(temporario, '﻿' + csv, 'utf8');
+  fs.renameSync(temporario, PLANILHA);
 }
 
 // Só aceita arquivos que estejam dentro de envios/arquivos/.
@@ -116,6 +148,28 @@ function caminhoDoArquivo(nome) {
   if (!caminho.startsWith(PASTA_ARQUIVOS + path.sep)) return null;
   if (!fs.existsSync(caminho) || !fs.statSync(caminho).isFile()) return null;
   return caminho;
+}
+
+function listarArquivos() {
+  if (!fs.existsSync(PASTA_ARQUIVOS)) return [];
+  return fs
+    .readdirSync(PASTA_ARQUIVOS, { withFileTypes: true })
+    .filter((d) => d.isFile() && !d.name.startsWith('.'))
+    .map((d) => d.name)
+    .sort((a, b) => a.localeCompare(b, 'pt-BR'));
+}
+
+// Deixa o nome do arquivo seguro e, se já existir, acrescenta -2, -3…
+function nomeLivre(nomeOriginal) {
+  const base = path.basename(String(nomeOriginal || 'arquivo'));
+  const limpo = base.replace(/[<>:"/\\|?*\x00-\x1f]/g, '_').replace(/^\.+/, '').slice(0, 120) || 'arquivo';
+  const ext = path.extname(limpo);
+  const semExt = limpo.slice(0, limpo.length - ext.length);
+  let nome = limpo;
+  for (let n = 2; fs.existsSync(path.join(PASTA_ARQUIVOS, nome)); n++) {
+    nome = `${semExt}-${n}${ext}`;
+  }
+  return nome;
 }
 
 // ---------------------------------------------------------------------------
@@ -129,14 +183,112 @@ function montarMensagem(cliente, padrao) {
 }
 
 function registrarRotasArquivos(app, client, estado, log) {
+  const express = require('express');
   const { MessageMedia } = require('whatsapp-web.js');
 
   // Andamento do envio atual (a página consulta para mostrar o progresso).
   const tarefa = { rodando: false, cancelar: false, itens: [] };
 
+  function bloquearDuranteEnvio(req, res, next) {
+    if (tarefa.rodando) {
+      return res.status(409).json({ erro: 'Espere o envio terminar (ou pare o envio) para mudar o cadastro.' });
+    }
+    next();
+  }
+
+  // --- Cadastro de clientes -------------------------------------------------
+
   app.get('/api/arquivos/clientes', (req, res) => {
     res.json(lerPlanilha());
   });
+
+  app.get('/api/arquivos/lista', (req, res) => {
+    res.json(listarArquivos());
+  });
+
+  // Recebe o arquivo "cru" no corpo da requisição; o nome vem em ?nome=
+  app.post(
+    '/api/arquivos/upload',
+    bloquearDuranteEnvio,
+    express.raw({ type: () => true, limit: LIMITE_UPLOAD }),
+    (req, res) => {
+      if (!Buffer.isBuffer(req.body) || req.body.length === 0) {
+        return res.status(400).json({ erro: 'Arquivo vazio.' });
+      }
+      fs.mkdirSync(PASTA_ARQUIVOS, { recursive: true });
+      const nome = nomeLivre(req.query.nome);
+      fs.writeFileSync(path.join(PASTA_ARQUIVOS, nome), req.body);
+      log(`Arquivo recebido pela página: ${nome}`);
+      res.json({ arquivo: nome });
+    }
+  );
+
+  function dadosDoFormulario(body) {
+    const cliente = {
+      nome: String(body?.nome || '').trim(),
+      telefone: normalizarTelefone(body?.telefone),
+      arquivo: String(body?.arquivo || '').trim(),
+      mensagem: String(body?.mensagem || '').trim(),
+    };
+    if (!cliente.nome) return { erro: 'Informe o nome do cliente.' };
+    if (cliente.telefone.length < 12 || cliente.telefone.length > 15) {
+      return { erro: 'Telefone inválido. Use DDD + número, ex: (67) 99999-9999.' };
+    }
+    if (!cliente.arquivo) return { erro: 'Escolha o arquivo do cliente.' };
+    if (!caminhoDoArquivo(cliente.arquivo)) return { erro: 'Arquivo não encontrado na pasta.' };
+    return { cliente };
+  }
+
+  // Confere se a linha ainda é o mesmo cliente (a planilha pode ter sido
+  // alterada no Excel enquanto a página estava aberta).
+  function acharCliente(req, res, clientes) {
+    const linha = Number(req.params.linha);
+    const atual = clientes.find((c) => c.linha === linha);
+    if (!atual || atual.telefone !== normalizarTelefone(req.query.telefone || req.body?.telefoneOriginal)) {
+      res.status(409).json({ erro: 'A planilha mudou. Clique em "Recarregar" e tente de novo.' });
+      return null;
+    }
+    return atual;
+  }
+
+  app.post('/api/arquivos/clientes', bloquearDuranteEnvio, express.json(), (req, res) => {
+    const { erro: erroForm, cliente } = dadosDoFormulario(req.body);
+    if (erroForm) return res.status(400).json({ erro: erroForm });
+    const { erro, clientes } = lerPlanilha();
+    if (erro) return res.status(400).json({ erro });
+
+    clientes.push(cliente);
+    salvarPlanilha(clientes);
+    log(`Cliente cadastrado: ${cliente.nome}`);
+    res.json({ ok: true });
+  });
+
+  app.put('/api/arquivos/clientes/:linha', bloquearDuranteEnvio, express.json(), (req, res) => {
+    const { erro: erroForm, cliente } = dadosDoFormulario(req.body);
+    if (erroForm) return res.status(400).json({ erro: erroForm });
+    const { erro, clientes } = lerPlanilha();
+    if (erro) return res.status(400).json({ erro });
+
+    const atual = acharCliente(req, res, clientes);
+    if (!atual) return;
+    Object.assign(atual, cliente);
+    salvarPlanilha(clientes);
+    log(`Cliente alterado: ${cliente.nome}`);
+    res.json({ ok: true });
+  });
+
+  app.delete('/api/arquivos/clientes/:linha', bloquearDuranteEnvio, (req, res) => {
+    const { erro, clientes } = lerPlanilha();
+    if (erro) return res.status(400).json({ erro });
+
+    const atual = acharCliente(req, res, clientes);
+    if (!atual) return;
+    salvarPlanilha(clientes.filter((c) => c !== atual));
+    log(`Cliente excluído: ${atual.nome || atual.telefone}`);
+    res.json({ ok: true });
+  });
+
+  // --- Envio ------------------------------------------------------------------
 
   app.get('/api/arquivos/progresso', (req, res) => {
     res.json({ rodando: tarefa.rodando, itens: tarefa.itens });
@@ -147,7 +299,7 @@ function registrarRotasArquivos(app, client, estado, log) {
     res.json({ ok: true });
   });
 
-  app.post('/api/arquivos/enviar', (req, res) => {
+  app.post('/api/arquivos/enviar', express.json(), (req, res) => {
     if (estado.status !== 'conectado') {
       return res.status(503).json({ erro: 'O WhatsApp ainda não está conectado.' });
     }

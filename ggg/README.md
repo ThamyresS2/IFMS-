@@ -37,23 +37,27 @@ conseguir mandar mensagens pelo seu WhatsApp. Para usar outra porta: `PORT=8080 
 
 ## Enviando um arquivo para cada cliente
 
-1. Coloque os arquivos na pasta `envios/arquivos/` (ex.: `boleto-maria.pdf`).
-2. Crie a planilha `envios/clientes.csv`. Dá para fazer no Excel e salvar como
-   **CSV (separado por vírgulas ou ponto e vírgula)**. Use o exemplo `envios/clientes.example.csv`:
+Na página, abra a aba **Arquivos para clientes**.
 
-   | nome        | telefone        | arquivo          | mensagem                                   |
-   |-------------|-----------------|------------------|--------------------------------------------|
-   | Maria Souza | 67999999999     | boleto-maria.pdf | Olá {nome}, segue o seu boleto deste mês.  |
-   | João Lima   | 5567988888888   | boleto-joao.pdf  |                                            |
-
-   - **telefone**: com DDD. O 55 do Brasil é colocado sozinho se faltar. Pode ter espaços, parênteses e traço.
-   - **arquivo**: nome do arquivo que está em `envios/arquivos/`.
-   - **mensagem** (opcional): texto que vai junto do arquivo. `{nome}` vira o primeiro nome do cliente.
-     Se ficar vazia, usa a mensagem digitada na página.
-3. Na página, abra a aba **Arquivos para clientes**. Ela mostra cada cliente e avisa se o
-   telefone está errado ou se o arquivo não foi encontrado.
+1. Clique em **+ Cadastrar cliente** e preencha:
+   - **Nome** e **WhatsApp** com DDD (o 55 do Brasil é colocado sozinho).
+   - **Arquivo**: escolha do computador (ele é copiado para `envios/arquivos/`) ou um
+     arquivo que já esteja nessa pasta.
+   - **Mensagem só para este cliente** (opcional). Se ficar vazia, vai a mensagem padrão.
+     `{nome}` vira o primeiro nome do cliente.
+2. Repita para cada cliente. Dá para **Editar** e **Excluir** depois.
+3. A lista avisa se algum telefone está errado ou se falta o arquivo.
 4. Desmarque quem não deve receber e clique em **Enviar arquivos**. Dá para acompanhar
    cliente por cliente e parar no meio com **Parar envio**.
+
+Os clientes ficam salvos em `envios/clientes.csv`. Se preferir, dá para preencher essa
+planilha direto no Excel (salve como CSV) e clicar em **Recarregar** na página.
+O modelo está em `envios/clientes.example.csv`:
+
+| nome        | telefone      | arquivo          | mensagem                                  |
+|-------------|---------------|------------------|-------------------------------------------|
+| Maria Souza | 67999999999   | boleto-maria.pdf | Olá {nome}, segue o seu boleto deste mês. |
+| João Lima   | 5567988888888 | boleto-joao.pdf  |                                           |
 
 O arquivo vai como documento (com o nome original). Entre um cliente e outro o bot espera
 de 5 a 12 segundos, para o WhatsApp não bloquear o número. 100 clientes levam uns 15 minutos.

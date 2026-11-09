@@ -217,11 +217,13 @@ async function carregarClientes() {
     if (dados.erro) throw new Error(dados.erro);
     clientes = dados.clientes;
     desenharClientes();
-    el('bloco-clientes').hidden = false;
+    el('bloco-clientes').hidden = clientes.length === 0;
+    el('sem-clientes').hidden = clientes.length > 0;
   } catch (err) {
     el('erro-planilha').textContent = err.message || 'Não foi possível ler a planilha.';
     el('erro-planilha').hidden = false;
     el('bloco-clientes').hidden = true;
+    el('sem-clientes').hidden = true;
   }
   // Se já tiver um envio rodando (ex.: página recarregada), mostra o progresso.
   acompanharEnvio();
@@ -247,7 +249,22 @@ function desenharClientes() {
       const detalhe = document.createElement('span');
       detalhe.className = 'dica';
       detalhe.textContent = `${formatarTelefone(c.telefone)} · ${c.arquivo || '—'}`;
-      info.append(nome, detalhe);
+
+      const botoes = document.createElement('div');
+      botoes.className = 'cliente-botoes';
+      const editar = document.createElement('button');
+      editar.type = 'button';
+      editar.className = 'link';
+      editar.textContent = 'Editar';
+      editar.addEventListener('click', () => abrirFormCliente(c));
+      const excluir = document.createElement('button');
+      excluir.type = 'button';
+      excluir.className = 'link link--perigo';
+      excluir.textContent = 'Excluir';
+      excluir.addEventListener('click', () => excluirCliente(c));
+      botoes.append(editar, excluir);
+
+      info.append(nome, detalhe, botoes);
 
       const etiqueta = document.createElement('span');
       etiqueta.className = c.problema ? 'etiqueta etiqueta--erro' : 'etiqueta';
@@ -354,7 +371,161 @@ function definirEnviando(enviando) {
   el('parar-arquivos').hidden = !enviando;
   if (!enviando) el('parar-arquivos').textContent = 'Parar envio';
   el('recarregar-clientes').disabled = enviando;
+  el('novo-cliente').disabled = enviando;
+  document.querySelectorAll('.cliente-botoes button').forEach((b) => { b.disabled = enviando; });
+  if (enviando) fecharFormCliente();
 }
+
+// --- Cadastro de clientes ----------------------------------------------------
+
+const formCliente = el('form-cliente');
+let editando = null; // cliente sendo editado (null = novo)
+
+function origemArquivo() {
+  return document.querySelector('input[name="origem-arquivo"]:checked').value;
+}
+
+function atualizarOrigemArquivo() {
+  const pasta = origemArquivo() === 'pasta';
+  el('cli-upload').hidden = pasta;
+  el('cli-arquivo-pasta').hidden = !pasta;
+}
+
+async function carregarArquivosDaPasta(selecionado) {
+  const select = el('cli-arquivo-pasta');
+  try {
+    const arquivos = await (await fetch('/api/arquivos/lista')).json();
+    const vazio = document.createElement('option');
+    vazio.value = '';
+    vazio.textContent = arquivos.length ? 'Escolha um arquivo…' : 'Nenhum arquivo na pasta';
+    select.replaceChildren(
+      vazio,
+      ...arquivos.map((nome) => {
+        const opt = document.createElement('option');
+        opt.value = nome;
+        opt.textContent = nome;
+        opt.selected = nome === selecionado;
+        return opt;
+      })
+    );
+  } catch {
+    select.replaceChildren();
+  }
+}
+
+function abrirFormCliente(cliente) {
+  editando = cliente || null;
+  el('titulo-form-cliente').textContent = cliente ? 'Editar cliente' : 'Novo cliente';
+  el('cli-nome').value = cliente?.nome || '';
+  el('cli-telefone').value = cliente ? formatarTelefone(cliente.telefone) : '';
+  el('cli-mensagem').value = cliente?.mensagem || '';
+  el('cli-upload').value = '';
+  el('aviso-cliente').hidden = true;
+
+  // Ao editar, o arquivo atual fica selecionado em "Já está na pasta".
+  document.querySelector(`input[name="origem-arquivo"][value="${cliente ? 'pasta' : 'novo'}"]`).checked = true;
+  el('cli-arquivo-atual').hidden = !cliente;
+  el('cli-arquivo-atual').textContent = cliente ? `Arquivo atual: ${cliente.arquivo || 'nenhum'}` : '';
+  atualizarOrigemArquivo();
+  carregarArquivosDaPasta(cliente?.arquivo);
+
+  formCliente.hidden = false;
+  el('novo-cliente').hidden = true;
+  el('cli-nome').focus();
+}
+
+function fecharFormCliente() {
+  formCliente.hidden = true;
+  el('novo-cliente').hidden = false;
+  editando = null;
+}
+
+async function respostaOuErro(resp) {
+  const dados = await resp.json().catch(() => ({}));
+  if (!resp.ok) throw new Error(dados.erro || 'Algo deu errado.');
+  return dados;
+}
+
+async function salvarCliente(evento) {
+  evento.preventDefault();
+  const aviso = el('aviso-cliente');
+  aviso.hidden = true;
+  const botao = el('salvar-cliente');
+  botao.disabled = true;
+  botao.textContent = 'Salvando…';
+
+  try {
+    let arquivo;
+    if (origemArquivo() === 'novo') {
+      const file = el('cli-upload').files[0];
+      if (!file) throw new Error('Escolha o arquivo do cliente.');
+      botao.textContent = 'Enviando arquivo…';
+      const dados = await respostaOuErro(
+        await fetch(`/api/arquivos/upload?nome=${encodeURIComponent(file.name)}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/octet-stream' },
+          body: file,
+        })
+      );
+      arquivo = dados.arquivo;
+    } else {
+      arquivo = el('cli-arquivo-pasta').value;
+      if (!arquivo) throw new Error('Escolha o arquivo do cliente.');
+    }
+
+    const corpo = {
+      nome: el('cli-nome').value,
+      telefone: el('cli-telefone').value,
+      arquivo,
+      mensagem: el('cli-mensagem').value,
+    };
+    const url = editando ? `/api/arquivos/clientes/${editando.linha}` : '/api/arquivos/clientes';
+    if (editando) corpo.telefoneOriginal = editando.telefone;
+
+    await respostaOuErro(
+      await fetch(url, {
+        method: editando ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(corpo),
+      })
+    );
+
+    const nome = corpo.nome.trim();
+    const eraEdicao = Boolean(editando);
+    fecharFormCliente();
+    await carregarClientes();
+    mostrarAvisoArquivos(eraEdicao ? `${nome} atualizado.` : `${nome} cadastrado.`, 'ok');
+  } catch (err) {
+    aviso.textContent = err.message;
+    aviso.hidden = false;
+  } finally {
+    botao.disabled = false;
+    botao.textContent = 'Salvar';
+  }
+}
+
+async function excluirCliente(cliente) {
+  if (!confirm(`Excluir ${cliente.nome || cliente.telefone} da lista?\n(O arquivo continua na pasta.)`)) return;
+  try {
+    await respostaOuErro(
+      await fetch(`/api/arquivos/clientes/${cliente.linha}?telefone=${encodeURIComponent(cliente.telefone)}`, {
+        method: 'DELETE',
+      })
+    );
+    if (editando && editando.linha === cliente.linha) fecharFormCliente();
+    await carregarClientes();
+    mostrarAvisoArquivos(`${cliente.nome || cliente.telefone} excluído.`, 'ok');
+  } catch (err) {
+    mostrarAvisoArquivos(err.message, 'erro');
+  }
+}
+
+el('novo-cliente').addEventListener('click', () => abrirFormCliente(null));
+el('cancelar-cliente').addEventListener('click', fecharFormCliente);
+formCliente.addEventListener('submit', salvarCliente);
+document.querySelectorAll('input[name="origem-arquivo"]').forEach((r) => {
+  r.addEventListener('change', atualizarOrigemArquivo);
+});
 
 el('marcar-todos').addEventListener('change', (e) => {
   checksDisponiveis().forEach((c) => { c.checked = e.target.checked; });
