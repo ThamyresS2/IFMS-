@@ -1,0 +1,23 @@
+{
+  "fusoHorario": "America/Campo_Grande",
+  "mensagens": [
+    {
+      "nome": "Bom dia para a família",
+      "para": ["5567999999999"],
+      "texto": "Bom dia! ☀️ Tenham um ótimo dia.",
+      "quando": "0 7 * * *"
+    },
+    {
+      "nome": "Lembrete de aula (seg a sex)",
+      "para": ["5567988888888", "5567977777777"],
+      "texto": "Lembrete: a aula começa às 19h. Não se atrase!",
+      "quando": "30 18 * * 1-5"
+    },
+    {
+      "nome": "Aviso no grupo da turma (sextas)",
+      "grupo": "Turma IFMS",
+      "texto": "Pessoal, não esqueçam de entregar a atividade da semana! 📚",
+      "quando": "0 12 * * 5"
+    }
+  ]
+}
